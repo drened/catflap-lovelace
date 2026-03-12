@@ -1,7 +1,7 @@
 {
   "name": "Cat Flap Dashboard Card",
   "content_in_root": false,
-  "filename": "dist/catflap-dashboard-card.js",
+  "filename": "catflap-dashboard-card.js",
   "render_readme": true,
   "homeassistant": "2024.1.0"
 }

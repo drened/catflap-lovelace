@@ -20,6 +20,11 @@ HACS-installable custom Lovelace card for the `ESP32 Cat Flap` integration.
 4. Install `Cat Flap Dashboard Card`.
 5. Reload browser (hard refresh) and reopen dashboard editor.
 
+If the card still does not appear, verify resource path:
+
+- `/hacsfiles/catflap-lovelace/catflap-dashboard-card.js`
+- type: `module`
+
 ## Use the Card
 
 1. Open dashboard editor.
