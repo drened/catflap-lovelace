@@ -3,13 +3,24 @@ class CatFlapDashboardCard extends HTMLElement {
     return {
       type: "custom:catflap-dashboard-card",
       title: "Cat Flap",
-      prefix: "esp32_cat_flap",
-      cats: "Minka,Milo",
+      prefix: "",
     };
   }
 
   static getConfigElement() {
     return document.createElement("catflap-dashboard-card-editor");
+  }
+
+  static discoverPrefixes(hass) {
+    if (!hass || !hass.states) return [];
+    const found = new Set();
+    Object.keys(hass.states).forEach((entityId) => {
+      const match = entityId.match(/^sensor\.(.+)_registered_cats$/);
+      if (match && match[1]) {
+        found.add(match[1]);
+      }
+    });
+    return Array.from(found).sort((a, b) => a.localeCompare(b));
   }
 
   setConfig(config) {
@@ -18,8 +29,7 @@ class CatFlapDashboardCard extends HTMLElement {
     }
     this._config = {
       title: "Cat Flap",
-      prefix: "esp32_cat_flap",
-      cats: "",
+      prefix: "",
       ...config,
     };
     this._render();
@@ -45,29 +55,45 @@ class CatFlapDashboardCard extends HTMLElement {
     return stateObj.state;
   }
 
-  _name(entityId, fallback) {
-    const stateObj = this._entity(entityId);
-    if (!stateObj) return fallback || entityId;
-    return stateObj.attributes.friendly_name || fallback || entityId;
+  _effectivePrefix() {
+    if (this._config.prefix && this._config.prefix.trim()) {
+      return this._config.prefix.trim();
+    }
+    const discovered = CatFlapDashboardCard.discoverPrefixes(this._hass);
+    return discovered.length ? discovered[0] : "";
   }
 
-  _slugify(input) {
-    return String(input || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
+  _discoverCats(prefix) {
+    if (!prefix || !this._hass || !this._hass.states) return [];
+    const cats = [];
+    const suffix = "_inside";
+    const expectedStart = `binary_sensor.${prefix}_`;
+    Object.entries(this._hass.states).forEach(([entityId, stateObj]) => {
+      if (!entityId.startsWith(expectedStart) || !entityId.endsWith(suffix)) {
+        return;
+      }
+      const catSlug = entityId
+        .slice(expectedStart.length, entityId.length - suffix.length)
+        .trim();
+      if (!catSlug) return;
+
+      const catName =
+        stateObj.attributes.cat_name ||
+        stateObj.attributes.friendly_name ||
+        catSlug;
+      const outsideId = `sensor.${prefix}_${catSlug}_outside_today`;
+      cats.push({
+        slug: catSlug,
+        name: catName,
+        insideId: entityId,
+        outsideId,
+      });
+    });
+    cats.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    return cats;
   }
 
-  _catList() {
-    return String(this._config.cats || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter((x) => x.length > 0);
-  }
-
-  _buildRows() {
-    const prefix = this._config.prefix;
+  _buildRows(prefix) {
     const rows = [];
     const overview = [
       { label: "Last Direction", id: `sensor.${prefix}_last_direction` },
@@ -90,26 +116,35 @@ class CatFlapDashboardCard extends HTMLElement {
       `);
     });
 
-    const cats = this._catList();
+    const cats = this._discoverCats(prefix);
     if (cats.length) {
       rows.push(`<div class="section">Cats</div>`);
-      cats.forEach((catName) => {
-        const slug = this._slugify(catName);
-        const insideId = `binary_sensor.${prefix}_${slug}_inside`;
-        const outsideId = `sensor.${prefix}_${slug}_outside_today`;
-        const insideRaw = this._state(insideId);
-        const insideLabel = insideRaw === "on" ? "Inside" : insideRaw === "off" ? "Outside" : insideRaw;
+      cats.forEach((cat) => {
+        const insideRaw = this._state(cat.insideId);
+        const insideLabel =
+          insideRaw === "on"
+            ? "Inside"
+            : insideRaw === "off"
+              ? "Outside"
+              : insideRaw;
         rows.push(`
           <div class="row">
-            <div class="label">${catName}</div>
+            <div class="label">${cat.name}</div>
             <div class="value">${insideLabel}</div>
           </div>
           <div class="row sub">
             <div class="label">Outside Today</div>
-            <div class="value">${this._state(outsideId)} h</div>
+            <div class="value">${this._state(cat.outsideId)} h</div>
           </div>
         `);
       });
+    } else {
+      rows.push(`
+        <div class="row">
+          <div class="label">Cats</div>
+          <div class="value">not found</div>
+        </div>
+      `);
     }
 
     return rows.join("");
@@ -140,10 +175,25 @@ class CatFlapDashboardCard extends HTMLElement {
       this.appendChild(card);
     }
 
-    const prefix = this._config.prefix;
+    const prefix = this._effectivePrefix();
+    if (!prefix) {
+      this.content.innerHTML = `
+        <div class="title">
+          <ha-icon icon="mdi:cat"></ha-icon>
+          <span>${this._config.title || "Cat Flap"}</span>
+        </div>
+        <div class="row">
+          <div class="label">Status</div>
+          <div class="value">No cat flap entities found</div>
+        </div>
+      `;
+      return;
+    }
+
     const activityId = `binary_sensor.${prefix}_activity`;
     const activityRaw = this._state(activityId);
-    const activity = activityRaw === "on" ? "Active" : activityRaw === "off" ? "Idle" : activityRaw;
+    const activity =
+      activityRaw === "on" ? "Active" : activityRaw === "off" ? "Idle" : activityRaw;
     const title = this._config.title || "Cat Flap";
 
     this.content.innerHTML = `
@@ -152,7 +202,7 @@ class CatFlapDashboardCard extends HTMLElement {
         <span>${title}</span>
         <span class="badge">Activity: ${activity}</span>
       </div>
-      ${this._buildRows()}
+      ${this._buildRows(prefix)}
     `;
   }
 }
@@ -161,8 +211,7 @@ class CatFlapDashboardCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = {
       title: "Cat Flap",
-      prefix: "esp32_cat_flap",
-      cats: "",
+      prefix: "",
       ...config,
     };
     this._render();
@@ -173,27 +222,23 @@ class CatFlapDashboardCardEditor extends HTMLElement {
     this._render();
   }
 
+  _prefixOptions() {
+    const discovered = CatFlapDashboardCard.discoverPrefixes(this._hass);
+    const options = [{ value: "", label: "Auto detect" }];
+    discovered.forEach((prefix) => {
+      options.push({ value: prefix, label: prefix });
+    });
+    return options;
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
       this._form = document.createElement("ha-form");
-      this._form.schema = [
-        { name: "title", selector: { text: {} } },
-        { name: "prefix", selector: { text: {} } },
-        {
-          name: "cats",
-          selector: {
-            text: {
-              multiline: true,
-            },
-          },
-        },
-      ];
       this._form.computeLabel = (schema) => {
         const labels = {
           title: "Card title",
-          prefix: "Entity prefix (without domain)",
-          cats: "Cat names (comma separated)",
+          prefix: "Cat flap entity prefix",
         };
         return labels[schema.name] || schema.name;
       };
@@ -214,11 +259,22 @@ class CatFlapDashboardCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
 
+    this._form.schema = [
+      { name: "title", selector: { text: {} } },
+      {
+        name: "prefix",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: this._prefixOptions(),
+          },
+        },
+      },
+    ];
     this._form.hass = this._hass;
     this._form.data = {
       title: this._config.title || "",
       prefix: this._config.prefix || "",
-      cats: this._config.cats || "",
     };
   }
 }

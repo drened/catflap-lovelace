@@ -31,8 +31,9 @@ If the card still does not appear, verify resource path:
 2. Add card -> search for `Cat Flap Dashboard Card`.
 3. Configure in UI:
    - `Card title`
-   - `Entity prefix` (example: `esp32_cat_flap`)
-   - `Cat names` (comma separated, example: `Minka,Milo`)
+   - `Cat flap entity prefix` (dropdown, default `Auto detect`)
+
+The card now auto-discovers cats from your integration entities.
 
 Entity naming expected from the integration:
 
@@ -46,9 +47,9 @@ Entity naming expected from the integration:
 - `sensor.<prefix>_dropped_duplicates`
 - `sensor.<prefix>_unknown_chip_events`
 - `sensor.<prefix>_unknown_direction_events`
-- per cat:
-  - `binary_sensor.<prefix>_<cat_slug>_inside`
-  - `sensor.<prefix>_<cat_slug>_outside_today`
+- per cat (auto-discovered):
+  - `binary_sensor.<prefix>_*_inside`
+  - `sensor.<prefix>_*_outside_today`
 
 ## Manual YAML Example
 
