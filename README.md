@@ -57,3 +57,14 @@ Entity naming expected from the integration:
 ## Manual YAML Example
 
 - `dashboards/catflap_dashboard_example.yaml`
+
+## Versioning
+
+- Current version is stored in `VERSION`.
+- Changes per release are documented in `CHANGELOG.md`.
+- Recommended release flow:
+  1. Bump `VERSION`
+  2. Add changelog section
+  3. Commit
+  4. Tag (`vX.Y.Z`)
+  5. Push commit + tag
