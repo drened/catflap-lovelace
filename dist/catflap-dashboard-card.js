@@ -1,9 +1,23 @@
 class CatFlapDashboardCard extends HTMLElement {
+  static OVERVIEW_FIELDS = [
+    { key: "last_direction", label: "Last Direction", suffix: "_last_direction" },
+    { key: "last_chip", label: "Last Chip", suffix: "_last_chip" },
+    { key: "last_cat", label: "Last Known Cat", suffix: "_last_cat" },
+    { key: "last_event", label: "Last Event", suffix: "_last_event" },
+    { key: "registered_cats", label: "Registered Cats", suffix: "_registered_cats" },
+    { key: "total_events", label: "Total Events", suffix: "_total_events" },
+    { key: "dropped_duplicates", label: "Dropped Duplicates", suffix: "_dropped_duplicates" },
+    { key: "unknown_chip_events", label: "Unknown Chip Events", suffix: "_unknown_chip_events" },
+    { key: "unknown_direction_events", label: "Unknown Direction Events", suffix: "_unknown_direction_events" },
+  ];
+
   static getStubConfig() {
     return {
       type: "custom:catflap-dashboard-card",
       title: "Cat Flap",
       prefix: "",
+      selected_fields: CatFlapDashboardCard.OVERVIEW_FIELDS.map((x) => x.key),
+      selected_cats: [],
     };
   }
 
@@ -30,6 +44,8 @@ class CatFlapDashboardCard extends HTMLElement {
     this._config = {
       title: "Cat Flap",
       prefix: "",
+      selected_fields: CatFlapDashboardCard.OVERVIEW_FIELDS.map((x) => x.key),
+      selected_cats: [],
       ...config,
     };
     this._render();
@@ -53,6 +69,14 @@ class CatFlapDashboardCard extends HTMLElement {
     const stateObj = this._entity(entityId);
     if (!stateObj) return "not found";
     return stateObj.state;
+  }
+
+  _normalizeArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      return value.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+    }
+    return [];
   }
 
   _effectivePrefix() {
@@ -93,30 +117,47 @@ class CatFlapDashboardCard extends HTMLElement {
     return cats;
   }
 
+  _formatValue(fieldKey, rawValue) {
+    if (rawValue === "not found") return rawValue;
+    if (fieldKey !== "last_event") return rawValue;
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) return rawValue;
+    return parsed.toLocaleString();
+  }
+
+  _selectedFields() {
+    const selected = this._normalizeArray(this._config.selected_fields);
+    if (!selected.length) {
+      return CatFlapDashboardCard.OVERVIEW_FIELDS.map((x) => x.key);
+    }
+    return selected;
+  }
+
+  _selectedCats(cats) {
+    const selected = this._normalizeArray(this._config.selected_cats);
+    if (!selected.length) return cats;
+    const set = new Set(selected);
+    return cats.filter((cat) => set.has(cat.slug));
+  }
+
   _buildRows(prefix) {
     const rows = [];
-    const overview = [
-      { label: "Last Direction", id: `sensor.${prefix}_last_direction` },
-      { label: "Last Chip", id: `sensor.${prefix}_last_chip` },
-      { label: "Last Known Cat", id: `sensor.${prefix}_last_cat` },
-      { label: "Last Event", id: `sensor.${prefix}_last_event` },
-      { label: "Registered Cats", id: `sensor.${prefix}_registered_cats` },
-      { label: "Total Events", id: `sensor.${prefix}_total_events` },
-      { label: "Dropped Duplicates", id: `sensor.${prefix}_dropped_duplicates` },
-      { label: "Unknown Chip Events", id: `sensor.${prefix}_unknown_chip_events` },
-      { label: "Unknown Direction Events", id: `sensor.${prefix}_unknown_direction_events` },
-    ];
-
-    overview.forEach((item) => {
+    const selectedFields = new Set(this._selectedFields());
+    CatFlapDashboardCard.OVERVIEW_FIELDS
+      .filter((field) => selectedFields.has(field.key))
+      .forEach((field) => {
+        const id = `sensor.${prefix}${field.suffix}`;
+        const raw = this._state(id);
+        const value = this._formatValue(field.key, raw);
       rows.push(`
         <div class="row">
-          <div class="label">${item.label}</div>
-          <div class="value">${this._state(item.id)}</div>
+          <div class="label">${field.label}</div>
+          <div class="value">${value}</div>
         </div>
       `);
     });
 
-    const cats = this._discoverCats(prefix);
+    const cats = this._selectedCats(this._discoverCats(prefix));
     if (cats.length) {
       rows.push(`<div class="section">Cats</div>`);
       cats.forEach((cat) => {
@@ -212,6 +253,8 @@ class CatFlapDashboardCardEditor extends HTMLElement {
     this._config = {
       title: "Cat Flap",
       prefix: "",
+      selected_fields: CatFlapDashboardCard.OVERVIEW_FIELDS.map((x) => x.key),
+      selected_cats: [],
       ...config,
     };
     this._render();
@@ -231,6 +274,32 @@ class CatFlapDashboardCardEditor extends HTMLElement {
     return options;
   }
 
+  _currentPrefix() {
+    if (this._config.prefix && this._config.prefix.trim()) {
+      return this._config.prefix.trim();
+    }
+    const discovered = CatFlapDashboardCard.discoverPrefixes(this._hass);
+    return discovered.length ? discovered[0] : "";
+  }
+
+  _fieldOptions() {
+    return CatFlapDashboardCard.OVERVIEW_FIELDS.map((field) => ({
+      value: field.key,
+      label: field.label,
+    }));
+  }
+
+  _catOptions() {
+    const prefix = this._currentPrefix();
+    if (!prefix) return [];
+    const temp = new CatFlapDashboardCard();
+    temp._hass = this._hass;
+    return temp._discoverCats(prefix).map((cat) => ({
+      value: cat.slug,
+      label: cat.name,
+    }));
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
@@ -239,6 +308,8 @@ class CatFlapDashboardCardEditor extends HTMLElement {
         const labels = {
           title: "Card title",
           prefix: "Cat flap entity prefix",
+          selected_fields: "Visible overview fields",
+          selected_cats: "Visible cats (empty = all)",
         };
         return labels[schema.name] || schema.name;
       };
@@ -270,11 +341,33 @@ class CatFlapDashboardCardEditor extends HTMLElement {
           },
         },
       },
+      {
+        name: "selected_fields",
+        selector: {
+          select: {
+            mode: "dropdown",
+            multiple: true,
+            options: this._fieldOptions(),
+          },
+        },
+      },
+      {
+        name: "selected_cats",
+        selector: {
+          select: {
+            mode: "dropdown",
+            multiple: true,
+            options: this._catOptions(),
+          },
+        },
+      },
     ];
     this._form.hass = this._hass;
     this._form.data = {
       title: this._config.title || "",
       prefix: this._config.prefix || "",
+      selected_fields: this._config.selected_fields || [],
+      selected_cats: this._config.selected_cats || [],
     };
   }
 }

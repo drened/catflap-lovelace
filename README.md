@@ -32,8 +32,11 @@ If the card still does not appear, verify resource path:
 3. Configure in UI:
    - `Card title`
    - `Cat flap entity prefix` (dropdown, default `Auto detect`)
+   - `Visible overview fields`
+   - `Visible cats` (leave empty to show all)
 
 The card now auto-discovers cats from your integration entities.
+`Last Event` is rendered as local date/time instead of raw ISO string.
 
 Entity naming expected from the integration:
 
