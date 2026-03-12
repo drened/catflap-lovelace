@@ -1,0 +1,56 @@
+type: vertical-stack
+cards:
+  - type: tile
+    entity: binary_sensor.esp32_cat_flap_activity
+    name: Cat Flap Activity
+    icon: mdi:cat
+    state_content:
+      - state
+      - last_changed
+
+  - type: entities
+    title: Cat Flap Overview
+    show_header_toggle: false
+    entities:
+      - entity: sensor.esp32_cat_flap_last_direction
+        name: Last Direction
+      - entity: sensor.esp32_cat_flap_last_chip
+        name: Last Chip
+      - entity: sensor.esp32_cat_flap_last_cat
+        name: Last Known Cat
+      - entity: sensor.esp32_cat_flap_last_event
+        name: Last Event
+      - entity: sensor.esp32_cat_flap_registered_cats
+        name: Registered Cats
+      - type: divider
+      - entity: sensor.esp32_cat_flap_total_events
+        name: Total Events
+      - entity: sensor.esp32_cat_flap_dropped_duplicates
+        name: Dropped Duplicates
+      - entity: sensor.esp32_cat_flap_unknown_chip_events
+        name: Unknown Chip Events
+      - entity: sensor.esp32_cat_flap_unknown_direction_events
+        name: Unknown Direction Events
+
+  - type: entities
+    title: Cats
+    show_header_toggle: false
+    entities:
+      - entity: binary_sensor.esp32_cat_flap_minka_inside
+        name: Minka Inside
+      - entity: sensor.esp32_cat_flap_minka_outside_today
+        name: Minka Outside Today (h)
+      - type: divider
+      - entity: binary_sensor.esp32_cat_flap_milo_inside
+        name: Milo Inside
+      - entity: sensor.esp32_cat_flap_milo_outside_today
+        name: Milo Outside Today (h)
+
+  - type: history-graph
+    title: Activity (24h)
+    hours_to_show: 24
+    refresh_interval: 60
+    entities:
+      - entity: binary_sensor.esp32_cat_flap_activity
+      - entity: binary_sensor.esp32_cat_flap_minka_inside
+      - entity: binary_sensor.esp32_cat_flap_milo_inside
