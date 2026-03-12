@@ -1,14 +1,14 @@
 class CatFlapDashboardCard extends HTMLElement {
   static OVERVIEW_FIELDS = [
-    { key: "last_direction", label: "Last Direction", suffix: "_last_direction" },
-    { key: "last_chip", label: "Last Chip", suffix: "_last_chip" },
-    { key: "last_cat", label: "Last Known Cat", suffix: "_last_cat" },
-    { key: "last_event", label: "Last Event", suffix: "_last_event" },
-    { key: "registered_cats", label: "Registered Cats", suffix: "_registered_cats" },
-    { key: "total_events", label: "Total Events", suffix: "_total_events" },
-    { key: "dropped_duplicates", label: "Dropped Duplicates", suffix: "_dropped_duplicates" },
-    { key: "unknown_chip_events", label: "Unknown Chip Events", suffix: "_unknown_chip_events" },
-    { key: "unknown_direction_events", label: "Unknown Direction Events", suffix: "_unknown_direction_events" },
+    { key: "last_direction", suffix: "_last_direction" },
+    { key: "last_chip", suffix: "_last_chip" },
+    { key: "last_cat", suffix: "_last_cat" },
+    { key: "last_event", suffix: "_last_event" },
+    { key: "registered_cats", suffix: "_registered_cats" },
+    { key: "total_events", suffix: "_total_events" },
+    { key: "dropped_duplicates", suffix: "_dropped_duplicates" },
+    { key: "unknown_chip_events", suffix: "_unknown_chip_events" },
+    { key: "unknown_direction_events", suffix: "_unknown_direction_events" },
   ];
 
   static getStubConfig() {
@@ -60,6 +60,70 @@ class CatFlapDashboardCard extends HTMLElement {
     return 8;
   }
 
+  _language() {
+    const lang = this._hass?.language || this._hass?.locale?.language || "en";
+    return String(lang).toLowerCase().startsWith("de") ? "de" : "en";
+  }
+
+  _t(key) {
+    const dict = {
+      en: {
+        last_direction: "Last Direction",
+        last_chip: "Last Chip",
+        last_cat: "Last Known Cat",
+        last_event: "Last Event",
+        registered_cats: "Registered Cats",
+        total_events: "Total Events",
+        dropped_duplicates: "Dropped Duplicates",
+        unknown_chip_events: "Unknown Chip Events",
+        unknown_direction_events: "Unknown Direction Events",
+        cats: "Cats",
+        inside: "Inside",
+        outside: "Outside",
+        outside_today: "Outside Today",
+        activity: "Activity",
+        active: "Active",
+        idle: "Idle",
+        status: "Status",
+        no_entities_found: "No cat flap entities found",
+        not_found: "not found",
+        card_title: "Card title",
+        prefix_label: "Cat flap entity prefix",
+        fields_label: "Visible overview fields",
+        cats_label: "Visible cats (empty = all)",
+        auto_detect: "Auto detect",
+      },
+      de: {
+        last_direction: "Letzte Richtung",
+        last_chip: "Letzter Chip",
+        last_cat: "Letzte bekannte Katze",
+        last_event: "Letztes Ereignis",
+        registered_cats: "Registrierte Katzen",
+        total_events: "Gesamt-Ereignisse",
+        dropped_duplicates: "Verworfene Duplikate",
+        unknown_chip_events: "Unbekannte Chip-Ereignisse",
+        unknown_direction_events: "Unbekannte Richtungs-Ereignisse",
+        cats: "Katzen",
+        inside: "Drinnen",
+        outside: "Draußen",
+        outside_today: "Heute draußen",
+        activity: "Aktivität",
+        active: "Aktiv",
+        idle: "Inaktiv",
+        status: "Status",
+        no_entities_found: "Keine Katzenklappen-Entitäten gefunden",
+        not_found: "nicht gefunden",
+        card_title: "Kartentitel",
+        prefix_label: "Katzenklappen-Entitätspräfix",
+        fields_label: "Sichtbare Übersichtsfelder",
+        cats_label: "Sichtbare Katzen (leer = alle)",
+        auto_detect: "Automatisch erkennen",
+      },
+    };
+    const lang = this._language();
+    return dict[lang][key] || key;
+  }
+
   _entity(entityId) {
     if (!entityId || !this._hass) return null;
     return this._hass.states[entityId] || null;
@@ -67,7 +131,7 @@ class CatFlapDashboardCard extends HTMLElement {
 
   _state(entityId) {
     const stateObj = this._entity(entityId);
-    if (!stateObj) return "not found";
+    if (!stateObj) return this._t("not_found");
     return stateObj.state;
   }
 
@@ -96,15 +160,10 @@ class CatFlapDashboardCard extends HTMLElement {
       if (!entityId.startsWith(expectedStart) || !entityId.endsWith(suffix)) {
         return;
       }
-      const catSlug = entityId
-        .slice(expectedStart.length, entityId.length - suffix.length)
-        .trim();
+      const catSlug = entityId.slice(expectedStart.length, entityId.length - suffix.length).trim();
       if (!catSlug) return;
 
-      const catName =
-        stateObj.attributes.cat_name ||
-        stateObj.attributes.friendly_name ||
-        catSlug;
+      const catName = stateObj.attributes.cat_name || stateObj.attributes.friendly_name || catSlug;
       const outsideId = `sensor.${prefix}_${catSlug}_outside_today`;
       cats.push({
         slug: catSlug,
@@ -118,11 +177,19 @@ class CatFlapDashboardCard extends HTMLElement {
   }
 
   _formatValue(fieldKey, rawValue) {
-    if (rawValue === "not found") return rawValue;
+    if (rawValue === this._t("not_found")) return rawValue;
     if (fieldKey !== "last_event") return rawValue;
     const parsed = new Date(rawValue);
     if (Number.isNaN(parsed.getTime())) return rawValue;
-    return parsed.toLocaleString();
+    const locale = this._language() === "de" ? "de-DE" : undefined;
+    return parsed.toLocaleString(locale, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
   }
 
   _selectedFields() {
@@ -149,32 +216,27 @@ class CatFlapDashboardCard extends HTMLElement {
         const id = `sensor.${prefix}${field.suffix}`;
         const raw = this._state(id);
         const value = this._formatValue(field.key, raw);
-      rows.push(`
+        rows.push(`
         <div class="row">
-          <div class="label">${field.label}</div>
+          <div class="label">${this._t(field.key)}</div>
           <div class="value">${value}</div>
         </div>
       `);
-    });
+      });
 
     const cats = this._selectedCats(this._discoverCats(prefix));
     if (cats.length) {
-      rows.push(`<div class="section">Cats</div>`);
+      rows.push(`<div class="section">${this._t("cats")}</div>`);
       cats.forEach((cat) => {
         const insideRaw = this._state(cat.insideId);
-        const insideLabel =
-          insideRaw === "on"
-            ? "Inside"
-            : insideRaw === "off"
-              ? "Outside"
-              : insideRaw;
+        const insideLabel = insideRaw === "on" ? this._t("inside") : insideRaw === "off" ? this._t("outside") : insideRaw;
         rows.push(`
           <div class="row">
             <div class="label">${cat.name}</div>
             <div class="value">${insideLabel}</div>
           </div>
           <div class="row sub">
-            <div class="label">Outside Today</div>
+            <div class="label">${this._t("outside_today")}</div>
             <div class="value">${this._state(cat.outsideId)} h</div>
           </div>
         `);
@@ -182,8 +244,8 @@ class CatFlapDashboardCard extends HTMLElement {
     } else {
       rows.push(`
         <div class="row">
-          <div class="label">Cats</div>
-          <div class="value">not found</div>
+          <div class="label">${this._t("cats")}</div>
+          <div class="value">${this._t("not_found")}</div>
         </div>
       `);
     }
@@ -224,8 +286,8 @@ class CatFlapDashboardCard extends HTMLElement {
           <span>${this._config.title || "Cat Flap"}</span>
         </div>
         <div class="row">
-          <div class="label">Status</div>
-          <div class="value">No cat flap entities found</div>
+          <div class="label">${this._t("status")}</div>
+          <div class="value">${this._t("no_entities_found")}</div>
         </div>
       `;
       return;
@@ -233,15 +295,14 @@ class CatFlapDashboardCard extends HTMLElement {
 
     const activityId = `binary_sensor.${prefix}_activity`;
     const activityRaw = this._state(activityId);
-    const activity =
-      activityRaw === "on" ? "Active" : activityRaw === "off" ? "Idle" : activityRaw;
+    const activity = activityRaw === "on" ? this._t("active") : activityRaw === "off" ? this._t("idle") : activityRaw;
     const title = this._config.title || "Cat Flap";
 
     this.content.innerHTML = `
       <div class="title">
         <ha-icon icon="mdi:cat"></ha-icon>
         <span>${title}</span>
-        <span class="badge">Activity: ${activity}</span>
+        <span class="badge">${this._t("activity")}: ${activity}</span>
       </div>
       ${this._buildRows(prefix)}
     `;
@@ -265,9 +326,34 @@ class CatFlapDashboardCardEditor extends HTMLElement {
     this._render();
   }
 
+  _language() {
+    const lang = this._hass?.language || this._hass?.locale?.language || "en";
+    return String(lang).toLowerCase().startsWith("de") ? "de" : "en";
+  }
+
+  _t(key) {
+    const dict = {
+      en: {
+        card_title: "Card title",
+        prefix_label: "Cat flap entity prefix",
+        fields_label: "Visible overview fields",
+        cats_label: "Visible cats (empty = all)",
+        auto_detect: "Auto detect",
+      },
+      de: {
+        card_title: "Kartentitel",
+        prefix_label: "Katzenklappen-Entitätspräfix",
+        fields_label: "Sichtbare Übersichtsfelder",
+        cats_label: "Sichtbare Katzen (leer = alle)",
+        auto_detect: "Automatisch erkennen",
+      },
+    };
+    return dict[this._language()][key] || key;
+  }
+
   _prefixOptions() {
     const discovered = CatFlapDashboardCard.discoverPrefixes(this._hass);
-    const options = [{ value: "", label: "Auto detect" }];
+    const options = [{ value: "", label: this._t("auto_detect") }];
     discovered.forEach((prefix) => {
       options.push({ value: prefix, label: prefix });
     });
@@ -283,9 +369,11 @@ class CatFlapDashboardCardEditor extends HTMLElement {
   }
 
   _fieldOptions() {
+    const temp = new CatFlapDashboardCard();
+    temp._hass = this._hass;
     return CatFlapDashboardCard.OVERVIEW_FIELDS.map((field) => ({
       value: field.key,
-      label: field.label,
+      label: temp._t(field.key),
     }));
   }
 
@@ -306,10 +394,10 @@ class CatFlapDashboardCardEditor extends HTMLElement {
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (schema) => {
         const labels = {
-          title: "Card title",
-          prefix: "Cat flap entity prefix",
-          selected_fields: "Visible overview fields",
-          selected_cats: "Visible cats (empty = all)",
+          title: this._t("card_title"),
+          prefix: this._t("prefix_label"),
+          selected_fields: this._t("fields_label"),
+          selected_cats: this._t("cats_label"),
         };
         return labels[schema.name] || schema.name;
       };

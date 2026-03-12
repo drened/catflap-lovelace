@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-03-12
+
+- Added German localization for card UI labels and editor labels.
+- Added localized status words (`Inside/Outside`, `Active/Idle`, `not found`).
+- Kept automatic localization based on Home Assistant language.
+
 ## 0.1.0 - 2026-03-12
 
 - Initial HACS-installable dashboard card release.

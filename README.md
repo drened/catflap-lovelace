@@ -37,6 +37,7 @@ If the card still does not appear, verify resource path:
 
 The card now auto-discovers cats from your integration entities.
 `Last Event` is rendered as local date/time instead of raw ISO string.
+Card labels are localized automatically (English/German) based on Home Assistant language.
 
 Entity naming expected from the integration:
 
