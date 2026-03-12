@@ -1,34 +1,50 @@
-# Cat Flap Lovelace Dashboard
+# Cat Flap Lovelace
 
-Standalone Lovelace dashboard package for the `ESP32 Cat Flap` Home Assistant integration.
+HACS-installable custom Lovelace card for the `ESP32 Cat Flap` integration.
 
-## Purpose
+## Features
 
-This repository is intentionally separate from the integration repository so users can:
+- Custom card: `custom:catflap-dashboard-card`
+- Visual card editor in Home Assistant UI
+- Configurable:
+  - card title
+  - entity prefix
+  - cat names list
+- Optional YAML dashboard example included
 
-- download dashboard YAML only
-- keep custom dashboard changes independent from integration updates
+## Install via HACS
 
-## Includes
+1. HACS -> Frontend -> Custom repositories.
+2. Add repository: `https://github.com/drened/catflap-lovelace`
+3. Category: `Dashboard`
+4. Install `Cat Flap Dashboard Card`.
+5. Reload browser (hard refresh) and reopen dashboard editor.
+
+## Use the Card
+
+1. Open dashboard editor.
+2. Add card -> search for `Cat Flap Dashboard Card`.
+3. Configure in UI:
+   - `Card title`
+   - `Entity prefix` (example: `esp32_cat_flap`)
+   - `Cat names` (comma separated, example: `Minka,Milo`)
+
+Entity naming expected from the integration:
+
+- `binary_sensor.<prefix>_activity`
+- `sensor.<prefix>_last_direction`
+- `sensor.<prefix>_last_chip`
+- `sensor.<prefix>_last_cat`
+- `sensor.<prefix>_last_event`
+- `sensor.<prefix>_registered_cats`
+- `sensor.<prefix>_total_events`
+- `sensor.<prefix>_dropped_duplicates`
+- `sensor.<prefix>_unknown_chip_events`
+- `sensor.<prefix>_unknown_direction_events`
+- per cat:
+  - `binary_sensor.<prefix>_<cat_slug>_inside`
+  - `sensor.<prefix>_<cat_slug>_outside_today`
+
+## Manual YAML Example
 
 - `dashboards/catflap_dashboard_example.yaml`
-
-## Requirements
-
-- Home Assistant with the `ESP32 Cat Flap` custom integration installed
-- Existing entities from the integration (replace entity IDs in YAML)
-
-## Install (Manual)
-
-1. Copy `dashboards/catflap_dashboard_example.yaml`.
-2. In Home Assistant open a dashboard and choose:
-   - `Edit dashboard`
-   - `Add card`
-   - `Manual`
-3. Paste YAML.
-4. Replace entity IDs with your real IDs from Developer Tools -> States.
-
-## Notes
-
-- This package is not a standalone HACS content type.
-- HACS can install the integration, but dashboard YAML is usually pasted/imported manually.
